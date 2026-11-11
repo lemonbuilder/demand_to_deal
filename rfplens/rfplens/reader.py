@@ -103,7 +103,13 @@ class Reader:
             elif kind == 'docx':
                 (text, imgs), method = XD.read_docx(data), 'docx-xml'
             elif kind == 'xlsx':
-                (text, imgs), method = XD.read_xlsx(data), 'xlsx'
+                try:
+                    (text, imgs), method = XD.read_xlsx(data), 'xlsx'
+                except Exception:            # 손상 xlsx: LibreOffice 재저장 → XML 직접 판독
+                    try:
+                        (text, imgs), method = XD.read_xlsx(open(X.lo_convert(path, 'xlsx', tmpdir, s), 'rb').read()), 'lo-xlsx->xlsx'
+                    except Exception:
+                        (text, imgs), method = XD.read_xlsx_raw(data), 'xlsx-rawxml'
             elif kind == 'pptx':
                 (text, imgs), method = XD.read_pptx(data), 'pptx-xml'
             elif kind in ('xls', 'doc', 'ppt'):

@@ -13,7 +13,8 @@ OLE_MAGIC = b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
 def detect(data: bytes) -> str:
     """반환: drm | ole | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
     h = data[:8]
-    if b'DRMONE' in data[:64] or b'<## MarkAny' in data[:64] or b'SCDSA' in data[:16]:
+    if (b'DRMONE' in data[:64] or b'<## MarkAny' in data[:64] or b'SCDSA' in data[:16]
+            or b'FasooSecureContainer' in data[:256]):
         return 'drm'
     if h.startswith(OLE_MAGIC):
         return 'ole'
