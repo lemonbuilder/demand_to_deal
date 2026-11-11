@@ -11,7 +11,7 @@ OLE_MAGIC = b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
 
 
 def detect(data: bytes) -> str:
-    """반환: drm-fasoo | drm-markany | drm | ole | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
+    """반환: drm-fasoo | drm-markany | drm | ole | egg | xlsb | odf | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
     h = data[:8]
     if b'DRMONE' in data[:64] or b'FasooSecureContainer' in data[:256] or b'Fasoo DRM' in data[:256]:
         return 'drm-fasoo'
@@ -35,6 +35,10 @@ def detect(data: bytes) -> str:
             return 'xlsx'
         if 'ppt/presentation.xml' in names:
             return 'pptx'
+        if 'xl/workbook.bin' in names:
+            return 'xlsb'                  # 엑셀 바이너리 통합문서(zip 컨테이너지만 압축으로 풀면 안 됨)
+        if 'mimetype' in names and any(n == 'content.xml' for n in names):
+            return 'odf'                   # OpenDocument(odt·ods·odp)
         return 'zip'
     if h.startswith(b'%PDF') or b'%PDF' in data[:1024]:
         return 'pdf'
@@ -45,6 +49,8 @@ def detect(data: bytes) -> str:
     head = data[:2048].lstrip(b'\xef\xbb\xbf')
     if head.startswith(b'<?xml') or head.startswith(b'<HWPML'):
         return 'hml' if b'HWPML' in data[:4096] else 'xml'
+    if h[:4] == b'EGGA':
+        return 'egg'
     if h.startswith(b'Rar!') or h.startswith(b'7z\xbc\xaf'):
         return 'archive_other'
     return 'unknown'

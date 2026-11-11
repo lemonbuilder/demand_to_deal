@@ -121,6 +121,10 @@ class Reader:
                         (text, imgs), method = XD.read_xlsx_raw(data), 'xlsx-rawxml'
             elif kind == 'pptx':
                 (text, imgs), method = XD.read_pptx(data), 'pptx-xml'
+            elif kind == 'xlsb':
+                (text, imgs), method = XD.read_xlsx(open(X.lo_convert(path, 'xlsx', tmpdir, s), 'rb').read()), 'lo-xlsb->xlsx'
+            elif kind == 'egg':
+                return self._read_egg(path, name, tmpdir, depth)
             elif kind in ('xls', 'doc', 'ppt'):
                 tgt = {'xls': 'xlsx', 'doc': 'docx', 'ppt': 'pptx'}[kind]
                 d2 = open(X.lo_convert(path, tgt, tmpdir, s), 'rb').read()
@@ -152,6 +156,26 @@ class Reader:
             return [(None, kind, method, text, '')]
         except Exception as e:
             return [(None, kind, 'error', '', f'{type(e).__name__}: {str(e)[:200]}')]
+
+    def _read_egg(self, path, name, tmpdir, depth):
+        from .readers import egg
+        sub = os.path.join(tmpdir, f'e{depth}_{abs(hash((path, name))) % 10**8}')
+        os.makedirs(sub, exist_ok=True)
+        try:
+            items = egg.extract(open(path, 'rb').read())
+        except egg.EggEncrypted as e:
+            return [(None, 'encrypted-egg', 'error', '', f'{e} — 원문 판독 불가')]
+        res = []
+        for k, (iname, data) in enumerate(items):
+            tp = os.path.join(sub, f'f{k}_{os.path.basename(iname)[-60:]}')
+            with open(tp, 'wb') as w:
+                w.write(data)
+            if depth >= self.s.max_zip_depth:
+                res.append((iname, 'egg', 'depth-limit', '', f'압축 중첩 {self.s.max_zip_depth}단계 초과'))
+                continue
+            for n, *rest in self._read_any(tp, iname, tmpdir, depth + 1):
+                res.append((f'{iname}/{n}' if n else iname, *rest))
+        return res
 
     def _read_zip(self, path, name, tmpdir, depth):
         sub = os.path.join(tmpdir, f'z{depth}_{abs(hash((path, name))) % 10**8}')

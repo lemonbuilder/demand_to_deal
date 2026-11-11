@@ -161,6 +161,21 @@ class TestBatch1Cases(unittest.TestCase):
         ('R25BK00596920-000', '과업지시서', 'hwp', 'hwp-record', 3000),     # .hwpx 확장자의 hwp
         ('R25BK00580217-000', '제안요청서', 'hwp', 'hwp-record', 70),       # 원문 자체가 짧은 문서
     ]
+    CASES_LATER = [  # (월, 폴더, 파일명 일부, 기대 kind, 최소 판독 파일 수) — 2025-05 배치 발견
+        ('2025-05', 'R25BK00837021-000', '.egg', 'hwpx', 2),        # 알집 EGG 안의 hwpx
+        ('2025-05', 'R25BK00840349-000', '.zip', 'xlsb', 1),        # zip 안의 xlsb(엑셀 바이너리)
+    ]
+
+    def test_later_cases(self):
+        root = os.environ['RFPLENS_SAMPLE_ROOT']
+        rd = Reader()
+        for ym, folder, part, kind, nmin in self.CASES_LATER:
+            d = os.path.join(root, 'raw_documents_excluded', ym, folder)
+            fn = [f for f in os.listdir(d) if f.endswith(part)][0]
+            res = rd.read_path(os.path.join(d, fn))
+            with self.subTest(folder=folder):
+                self.assertTrue(all(r.ok for r in res))
+                self.assertGreaterEqual(sum(r.kind == kind for r in res), nmin)
 
     def test_cases(self):
         root = os.environ['RFPLENS_SAMPLE_ROOT']
