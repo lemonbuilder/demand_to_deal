@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rfplens"
+version = "0.1.0"
+description = "RFPLens: 공공조달 RFP(공고문·과업지시서·제안요청서) 문서 판독·구조화 엔진"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "olefile>=0.46",        # hwp(OLE) 판독
+  "cryptography>=41",     # 배포용 hwp 해독(AES-128)
+  "openpyxl>=3.1",        # xlsx
+  "pandas>=2.0",          # 배치·저장소 표
+]
+
+[project.optional-dependencies]
+service = ["fastapi>=0.110", "uvicorn>=0.29", "python-multipart>=0.0.9"]
+census = ["openpyxl>=3.1"]      # population_master.xlsx 읽기
+fallback = ["pyhwp"]            # hwp5txt(최후 대체 경로)
+
+[project.scripts]
+rfplens = "rfplens.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["rfplens*"]
+
+[tool.setuptools.package-data]
+rfplens = ["rules/*.toml", "ocr/vision.swift"]
+
+# 외부 프로그램(시스템 설치): poppler(pdftotext·pdftoppm·pdfinfo), LibreOffice(soffice),
+# OCR: macOS → swiftc(Xcode CLT)로 `rfplens build-ocr` / Linux → tesseract + kor 데이터(RFPLENS_OCR=tesseract)

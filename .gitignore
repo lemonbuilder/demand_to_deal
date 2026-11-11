@@ -1,0 +1,22 @@
+# 데이터는 저장소에 넣지 않는다(원문 104GB, 저장소 결과 등)
+*.hwp
+*.hwpx
+*.hwtx
+*.pdf
+*.xls
+*.xlsx
+*.zip
+*.json.gz
+*.csv.gz
+10_store/
+data/
+# 빌드 산출물
+rfplens/rfplens/ocr/bin/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+.DS_Store
+~$*
