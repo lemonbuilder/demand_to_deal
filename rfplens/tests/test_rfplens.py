@@ -10,7 +10,7 @@ import unittest
 import zipfile
 
 from rfplens.detect import detect
-from rfplens.models import FAIL, OK, PASS_DRM, PASS_NOTICE, FileResult, NoticeResult
+from rfplens.models import FAIL, OK, PASS_ENC, PASS_NOTICE, FileResult, NoticeResult
 from rfplens.policy import apply_policy
 from rfplens.quality import garbage_ratio
 from rfplens.reader import Reader
@@ -112,18 +112,19 @@ class TestQualityPolicy(unittest.TestCase):
 
     def test_notice_policy_pass(self):
         nr = NoticeResult('N1', 'N1-000', [
-            FileResult(name='1_공고문.hwp', kind='drm', status=FAIL, error='DRM', seq=1),
+            FileResult(name='1_공고문.hwp', kind='hwp', status=FAIL, error='손상', seq=1),
             FileResult(name='2_과업지시서.hwp', kind='hwp', status=OK, text='가' * 200, chars=200, seq=2)])
         apply_policy(nr)
         self.assertEqual(nr.files[0].status, PASS_NOTICE)
 
     def test_fasoo_drm_pass(self):
-        nr = NoticeResult('N4', 'N4-000', [FileResult(name='2_과업지시서.hwp', kind='drm-fasoo', status=FAIL, error='DRM', seq=1)])
-        apply_policy(nr)
-        self.assertEqual(nr.files[0].status, PASS_DRM)
+        for k in ('drm-fasoo', 'drm-markany', 'drm', 'encrypted-hwp', 'encrypted-zip', 'encrypted-pdf'):
+            nr = NoticeResult('N4', 'N4-000', [FileResult(name='2_과업지시서.hwp', kind=k, status=FAIL, error='암호', seq=1)])
+            apply_policy(nr)
+            self.assertEqual(nr.files[0].status, PASS_ENC, k)
 
     def test_core_failure_stays(self):
-        nr = NoticeResult('N2', 'N2-000', [FileResult(name='2_과업지시서.hwp', kind='drm', status=FAIL, error='DRM', seq=1)])
+        nr = NoticeResult('N2', 'N2-000', [FileResult(name='2_과업지시서.hwp', kind='hwp', status=FAIL, error='손상', seq=1)])
         apply_policy(nr)
         self.assertEqual(nr.files[0].status, FAIL)
 

@@ -1,5 +1,6 @@
 """판독 정책 — 판독 불가 파일을 어떻게 다룰지
-0) Fasoo DRM 암호화 문서 → '통과-DRM(Fasoo)' (문서유형 무관, 대체 원문 탐색 안 함; 사용자 결정 2026-11-11)
+0) 암호화 문서(DRM 업체 무관, 사용자 암호 hwp, 암호화 OOXML·zip·pdf) → '통과-암호화' (문서유형 무관, 대체 원문 탐색 안 함;
+   같은 공고의 나머지 판독 자료로 자료화. 사용자 결정 2026-11-11)
 1) 공고문만 판독 불가이고 같은 공고의 핵심문서(과업지시서·제안요청서)가 판독되면 → '통과-공고문판독불가'(이상 아님)
 2) 핵심문서가 판독 불가이면 → 대체 원문 탐색(같은 공고번호 다른 차수 → 같은 수요기관·유사 공고명 재공고)
    찾으면 '성공-대체원문'(출처 기록), 못 찾으면 '실패' 유지
@@ -10,7 +11,7 @@ from __future__ import annotations
 import os
 from typing import Callable, Iterable
 
-from .models import FAIL, OK_SUBSTITUTE, PASS_DRM, PASS_NOTICE, NoticeResult
+from .models import FAIL, OK_SUBSTITUTE, PASS_ENC, PASS_NOTICE, NoticeResult
 from .quality import clean, garbage_ratio
 from .rules import load_rules
 from .sections import doctype
@@ -25,10 +26,10 @@ def apply_policy(nr: NoticeResult, reader=None,
     for f in nr.files:
         if f.status != FAIL:
             continue
-        if f.kind == 'drm-fasoo':
+        if f.kind.startswith(('drm', 'encrypted')):
             f.note = f'원판독 오류: {f.error}'
-            f.status, f.error = PASS_DRM, None
-            log.append((nr.cid, f.name, '통과', 'Fasoo DRM 암호화 문서(정당한 통과)'))
+            f.status, f.error = PASS_ENC, None
+            log.append((nr.cid, f.name, '통과', f'암호화 문서({f.kind}) — 나머지 자료로 자료화'))
             continue
         dt = doctype(f.inner or f.name, R)
         if dt not in R.core_doctypes and core_ok:

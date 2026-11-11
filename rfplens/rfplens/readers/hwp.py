@@ -122,6 +122,16 @@ def hwp_text(path: str) -> str:
         ole.close()
 
 
+def hwp_password_protected(path: str) -> bool:
+    """FileHeader 속성 bit1: 사용자 암호 설정 문서"""
+    ole = olefile.OleFileIO(path)
+    try:
+        props = struct.unpack_from('<I', ole.openstream('FileHeader').read(), 36)[0]
+        return bool(props & 2)
+    finally:
+        ole.close()
+
+
 def hwp_images(path: str) -> list[bytes]:
     """BinData 내장 이미지(압축 시 해제)"""
     o = olefile.OleFileIO(path); imgs = []

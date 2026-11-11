@@ -41,6 +41,12 @@ def read_pdf(path: str, tmpdir: str, ocr, s: Settings):
     return '\n'.join(pages), len(need)
 
 
+def pdf_user_password(path: str, s: Settings) -> bool:
+    """열기(사용자) 암호가 있어 내용을 못 여는 pdf 여부(소유자 암호만 있는 pdf는 판독 가능하므로 제외)"""
+    r = subprocess.run([s.pdfinfo, path], capture_output=True, timeout=60)
+    return b'Incorrect password' in r.stderr or b'Command Line Error: Incorrect password' in r.stderr
+
+
 def lo_convert(path: str, target: str, tmpdir: str, s: Settings) -> str:
     """LibreOffice headless 변환. 프로세스별 프로필 사용(병렬 실행 충돌 방지). 반환: 변환 파일 경로"""
     if not s.soffice:

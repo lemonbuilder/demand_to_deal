@@ -50,6 +50,15 @@ def detect(data: bytes) -> str:
     return 'unknown'
 
 
+def ole_has(path: str, stream: str) -> bool:
+    import olefile
+    o = olefile.OleFileIO(path)
+    try:
+        return o.exists(stream)
+    finally:
+        o.close()
+
+
 def ole_kind(path: str) -> str:
     """OLE 복합문서 세부 형식: hwp | xls | doc | ppt | ole_other"""
     import olefile

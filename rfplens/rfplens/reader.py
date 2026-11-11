@@ -92,6 +92,12 @@ class Reader:
                     kind = D.ole_kind(path)
                 except Exception:          # 손상 OLE(불완전 섹터 등) → LibreOffice 텍스트 변환 시도
                     kind = 'ole_broken'
+            if kind == 'hwp' and H.hwp_password_protected(path):
+                kind = 'encrypted-hwp'
+                raise PermissionError('사용자 암호가 설정된 hwp — 원문 판독 불가')
+            if kind == 'ole_other' and D.ole_has(path, 'EncryptedPackage'):
+                kind = 'encrypted-ooxml'
+                raise PermissionError('암호화된 오피스 문서 — 원문 판독 불가')
             if kind == 'hwp':
                 try:
                     text, method = H.hwp_text(path), 'hwp-record'
@@ -123,6 +129,9 @@ class Reader:
             elif kind in ('hml', 'xml'):
                 (text, imgs), method = XD.read_hml(data), 'xml'
             elif kind == 'pdf':
+                if X.pdf_user_password(path, s):
+                    kind = 'encrypted-pdf'
+                    raise PermissionError('열기 암호가 설정된 pdf — 원문 판독 불가')
                 text, n_ocr = X.read_pdf(path, tmpdir, self.ocr, s)
                 imgs, method = [], 'pdftotext' + (f'+ocr({n_ocr}쪽)' if n_ocr else '')
             elif kind == 'image':
@@ -159,6 +168,9 @@ class Reader:
                     except Exception:
                         pass
                 tp = os.path.join(sub, f'f{k}_{os.path.basename(iname)[-60:]}')
+                if info.flag_bits & 0x1:              # 암호 걸린 압축 항목
+                    res.append((iname, 'encrypted-zip', 'error', '', '암호가 걸린 압축 항목 — 원문 판독 불가'))
+                    continue
                 with open(tp, 'wb') as w:
                     w.write(z.read(info))
                 if depth >= self.s.max_zip_depth:
