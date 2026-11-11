@@ -123,6 +123,8 @@ class Reader:
                 (text, imgs), method = XD.read_pptx(data), 'pptx-xml'
             elif kind == 'xlsb':
                 (text, imgs), method = XD.read_xlsx(open(X.lo_convert(path, 'xlsx', tmpdir, s), 'rb').read()), 'lo-xlsb->xlsx'
+            elif kind.startswith('cad'):
+                raise ValueError('CAD 도면 파일(비텍스트 자료)')
             elif kind == 'egg':
                 return self._read_egg(path, name, tmpdir, depth)
             elif kind in ('xls', 'doc', 'ppt'):

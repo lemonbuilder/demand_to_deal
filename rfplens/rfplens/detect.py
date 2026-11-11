@@ -11,7 +11,7 @@ OLE_MAGIC = b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
 
 
 def detect(data: bytes) -> str:
-    """반환: drm-fasoo | drm-markany | drm | ole | egg | xlsb | odf | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
+    """반환: drm-fasoo | drm-markany | drm | ole | egg | xlsb | odf | cad-dwg | cad-dxf | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
     h = data[:8]
     if b'DRMONE' in data[:64] or b'FasooSecureContainer' in data[:256] or b'Fasoo DRM' in data[:256]:
         return 'drm-fasoo'
@@ -51,6 +51,10 @@ def detect(data: bytes) -> str:
         return 'hml' if b'HWPML' in data[:4096] else 'xml'
     if h[:4] == b'EGGA':
         return 'egg'
+    if h[:4] == b'AC10' or h[:4] == b'AC27':
+        return 'cad-dwg'                   # AutoCAD 도면(비텍스트)
+    if data[:64].lstrip().startswith(b'0') and b'SECTION' in data[:64] and b'HEADER' in data[:256]:
+        return 'cad-dxf'
     if h.startswith(b'Rar!') or h.startswith(b'7z\xbc\xaf'):
         return 'archive_other'
     return 'unknown'

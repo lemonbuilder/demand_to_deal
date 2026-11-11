@@ -1,6 +1,7 @@
 """판독 정책 — 판독 불가 파일을 어떻게 다룰지
 0) 암호화 문서(DRM 업체 무관, 사용자 암호 hwp, 암호화 OOXML·zip·pdf) → '통과-암호화' (문서유형 무관, 대체 원문 탐색 안 함;
    같은 공고의 나머지 판독 자료로 자료화. 사용자 결정 2026-11-11)
+0-1) CAD 도면(DWG·DXF) → '통과-도면'(비텍스트 자료)
 1) 공고문만 판독 불가이고 같은 공고의 핵심문서(과업지시서·제안요청서)가 판독되면 → '통과-공고문판독불가'(이상 아님)
 2) 핵심문서가 판독 불가이면 → 대체 원문 탐색(같은 공고번호 다른 차수 → 같은 수요기관·유사 공고명 재공고)
    찾으면 '성공-대체원문'(출처 기록), 못 찾으면 '실패' 유지
@@ -11,7 +12,7 @@ from __future__ import annotations
 import os
 from typing import Callable, Iterable
 
-from .models import FAIL, OK_SUBSTITUTE, PASS_ENC, PASS_NOTICE, NoticeResult
+from .models import FAIL, OK_SUBSTITUTE, PASS_CAD, PASS_ENC, PASS_NOTICE, NoticeResult
 from .quality import clean, garbage_ratio
 from .rules import load_rules
 from .sections import doctype
@@ -25,6 +26,11 @@ def apply_policy(nr: NoticeResult, reader=None,
     core_ok = any(f.ok and doctype(f.inner or f.name, R) in R.core_doctypes for f in nr.files)
     for f in nr.files:
         if f.status != FAIL:
+            continue
+        if f.kind.startswith('cad'):
+            f.note = f'원판독 오류: {f.error}'
+            f.status, f.error = PASS_CAD, None
+            log.append((nr.cid, f.name, '통과', 'CAD 도면(비텍스트 자료)'))
             continue
         if f.kind.startswith(('drm', 'encrypted')):
             f.note = f'원판독 오류: {f.error}'

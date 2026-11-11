@@ -101,6 +101,8 @@ class TestDetectAndRead(unittest.TestCase):
         self.assertEqual(detect(b'%PDF-1.7 xxx'), 'pdf')
         self.assertEqual(detect(b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1' + b'\x00' * 8), 'ole')
         self.assertEqual(detect(b'\x89PNG\r\n\x1a\n'), 'image')
+        self.assertEqual(detect(b'AC1032\x00\x00' + b'\x00' * 20), 'cad-dwg')
+        self.assertEqual(detect(b'EGGA\x00\x01' + b'\x00' * 20), 'egg')
 
 
 class TestQualityPolicy(unittest.TestCase):
