@@ -13,7 +13,8 @@ def verify_read(store_root: str, group: str, rows) -> dict:
     st = Store(store_root)
     status, kind, meth = collections.Counter(), collections.Counter(), collections.Counter()
     missing_notice, missing_file, fails, partial, short, passed, subst = [], [], [], [], [], [], []
-    drm_basis = []   # DRM 통과가 있는 공고: 같은 공고에서 판독된 문서(정리 근거)
+    drm_basis = []   # 암호화(DRM 포함)·손상원본 통과가 있는 공고: 같은 공고에서 판독된 문서(정리 근거)
+    no_readable = []  # 판독된 문서가 하나도 없는 공고(요구사항 단위 없음) — 전수 공고 수에는 포함, 단위 통계에서는 별도 표시
     for no, cid, doc_dir in rows:
         p = st.s1_path(group, no)
         if not os.path.exists(p):
@@ -38,7 +39,9 @@ def verify_read(store_root: str, group: str, rows) -> dict:
                 passed.append((no, f.name, f.note))
             if f.substitute_from:
                 subst.append((no, f.name, f.substitute_from))
-        if any(f.status.startswith('통과-DRM') for f in nr.files):
+        if not any(f.ok for f in nr.files):
+            no_readable.append((no, '+'.join(sorted({f.status for f in nr.files}))))
+        if any(f.status.startswith(('통과-DRM', '통과-암호화', '통과-손상원본')) for f in nr.files):
             from .sections import doctype
             readable = sorted({doctype(f.inner or f.name) for f in nr.files if f.ok})
             drm_basis.append((no, '+'.join(readable) or '판독 문서 없음',
@@ -46,4 +49,5 @@ def verify_read(store_root: str, group: str, rows) -> dict:
     return {'그룹': group, '대상공고': len(list(rows)), '기록없는공고': missing_notice, '기록누락파일': missing_file,
             '상태': dict(status), '형식': dict(kind), '판독방법': dict(meth), '실패': fails, '부분판독(표제외)': partial,
             '짧은문서': short, '통과(공고문판독불가·DRM)': passed, '대체원문': subst, 'DRM통과공고_정리근거': drm_basis,
+            '판독문서없음공고': no_readable,
             '이상없음': not (missing_notice or missing_file or fails or partial)}
