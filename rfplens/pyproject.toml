@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rfplens"
-version = "0.1.0"
+version = "0.1.1"
 description = "RFPLens: 공공조달 RFP(공고문·과업지시서·제안요청서) 문서 판독·구조화 엔진"
 readme = "README.md"
 requires-python = ">=3.11"
