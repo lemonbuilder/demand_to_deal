@@ -13,7 +13,7 @@ def run(cmd, timeout=300) -> str:
     return r.stdout.decode('utf-8', 'ignore')
 
 
-def read_pdf(path: str, tmpdir: str, ocr, s: Settings):
+def read_pdf(path: str, tmpdir: str, ocr, s: Settings, force_all: bool = False):
     """pdftotext로 쪽별 텍스트 → 공백 제외 page_min 미만인 쪽만 렌더링(dpi) 후 OCR. 반환 (text, OCR 쪽수)"""
     txt = run([s.pdftotext, '-q', '-enc', 'UTF-8', path, '-'])
     pages = txt.split('\f')
@@ -25,7 +25,7 @@ def read_pdf(path: str, tmpdir: str, ocr, s: Settings):
         except Exception:
             n = 0
         pages = [''] * n
-    need = [i for i, p in enumerate(pages) if len(re.sub(r'\s', '', p)) < s.page_min]
+    need = list(range(len(pages))) if force_all else [i for i, p in enumerate(pages) if len(re.sub(r'\s', '', p)) < s.page_min]
     for k in range(0, len(need), 10):
         chunk = need[k:k + 10]
         imgs = []

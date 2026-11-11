@@ -11,7 +11,7 @@ OLE_MAGIC = b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
 
 
 def detect(data: bytes) -> str:
-    """반환: drm-fasoo | drm-markany | drm | ole | egg | xlsb | odf | cad-dwg | cad-dxf | text | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
+    """반환: drm-fasoo | drm-markany | drm | ole | egg | xlsb | odf | cad-dwg | cad-dxf | text | shortcut | encrypted-unknown | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
     h = data[:8]
     if b'DRMONE' in data[:64] or b'FasooSecureContainer' in data[:256] or b'Fasoo DRM' in data[:256]:
         return 'drm-fasoo'
@@ -57,9 +57,20 @@ def detect(data: bytes) -> str:
         return 'cad-dxf'
     if h.startswith(b'Rar!') or h.startswith(b'7z\xbc\xaf'):
         return 'archive_other'
+    if h[:4] == b'L\x00\x00\x00' and data[4:8] == b'\x01\x14\x02\x00':
+        return 'shortcut'                  # 윈도우 바로가기(.lnk): 문서 내용 없음
     if _is_text(data):
         return 'text'
+    if len(data) >= 4096 and _entropy(data[:65536]) > 7.9:
+        return 'encrypted-unknown'         # 알려진 형식 표식 없는 고엔트로피 바이너리 = 암호화 파일로 판단
     return 'unknown'
+
+
+def _entropy(b: bytes) -> float:
+    import math
+    from collections import Counter
+    n = len(b)
+    return -sum(v / n * math.log2(v / n) for v in Counter(b).values()) if n else 0.0
 
 
 def _is_text(data: bytes) -> bool:
@@ -102,6 +113,8 @@ def ole_kind(path: str) -> str:
     try:
         if o.exists('FileHeader'):
             return 'hwp'
+        if not o.listdir() and b'HWP Document File' in open(path, 'rb').read():
+            return 'hwp'                   # 디렉터리가 깨진 hwp(판독기에서 복구)
         if o.exists('Workbook') or o.exists('Book'):
             return 'xls'
         if o.exists('WordDocument'):

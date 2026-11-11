@@ -18,7 +18,7 @@ from . import detect as D
 from .config import DEFAULT, Settings
 from .models import FileResult
 from .ocr import get_ocr
-from .quality import clean, judge
+from .quality import clean, garbage_ratio, judge
 from .readers import external as X
 from .readers import hwp as H
 from .readers import xmldocs as XD
@@ -144,11 +144,18 @@ class Reader:
                     raise PermissionError('열기 암호가 설정된 pdf — 원문 판독 불가')
                 text, n_ocr = X.read_pdf(path, tmpdir, self.ocr, s)
                 imgs, method = [], 'pdftotext' + (f'+ocr({n_ocr}쪽)' if n_ocr else '')
+                if garbage_ratio(clean(text)) > s.garbage_max:      # 글꼴 인코딩이 깨진 pdf → 전 쪽 OCR
+                    text, n_ocr = X.read_pdf(path, tmpdir, self.ocr, s, force_all=True)
+                    method = f'ocr-전쪽({n_ocr}쪽, 글꼴 인코딩 손상)'
             elif kind == 'image':
                 res = self.ocr.recognize([path])
                 text, imgs, method = (res[0] if res else ''), [], 'ocr-image'
             elif kind == 'zip':
                 return self._read_zip(path, name, tmpdir, depth)
+            elif kind == 'encrypted-unknown':
+                raise PermissionError('형식 표식 없는 암호화 파일(고엔트로피) — 원문 판독 불가')
+            elif kind == 'shortcut':
+                raise FileNotFoundError('윈도우 바로가기(.lnk) — 원문이 첨부되지 않음')
             elif kind.startswith('drm'):
                 vendor = {'drm-fasoo': 'Fasoo ', 'drm-markany': 'MarkAny '}.get(kind, '')
                 raise PermissionError(f'{vendor}DRM 암호화 문서(복호화 키 없음) — 원문 판독 불가')

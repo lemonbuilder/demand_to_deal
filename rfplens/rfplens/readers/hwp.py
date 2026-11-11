@@ -84,20 +84,90 @@ def decrypt_distribution_stream(raw: bytes) -> bytes:
     return c.update(body) + c.finalize()
 
 
+class _Streams:
+    """hwp 스트림 접근: 정상 OLE는 olefile, 디렉터리가 깨진 OLE는 원시 섹터에서 디렉터리 항목을 찾아 복구"""
+
+    def __init__(self, path):
+        self.ole = olefile.OleFileIO(path)
+        self.map = None
+        if not self.ole.exists('FileHeader'):
+            self.map = _recover_directory(path, self.ole)
+            if 'FileHeader' not in self.map:
+                self.ole.close()
+                raise ValueError('hwp FileHeader 없음(복구 불가)')
+
+    def read(self, entry):
+        if self.map is None:
+            return self.ole.openstream(entry).read()
+        return self.map[entry[-1] if isinstance(entry, list) else entry]
+
+    def sections(self, top):
+        if self.map is None:
+            return sorted((e for e in self.ole.listdir() if len(e) == 2 and e[0] == top),
+                          key=lambda e: int(e[1].replace('Section', '')))
+        return [[top, n] for n in sorted((k for k in self.map if k.startswith('Section')), key=lambda k: int(k[7:]))]
+
+    def close(self):
+        self.ole.close()
+
+
+def _recover_directory(path, ole) -> dict:
+    """원시 바이트에서 128B 디렉터리 항목 탐색 → 루트(미니스트림)와 각 스트림을 FAT/미니스트림에서 읽음.
+    미니FAT이 없으면 미니 섹터가 연속이라고 가정(1배치 이후 2025-11 사례: 헤더의 디렉터리 시작 섹터 오류)."""
+    data = open(path, 'rb').read()
+    ss = ole.sectorsize
+    ents = {}
+    root = None
+    for off in range(512, len(data) - 127, 128):
+        e = data[off:off + 128]
+        nl = struct.unpack_from('<H', e, 64)[0]; typ = e[66]
+        if not (2 <= nl <= 64 and typ in (1, 2, 5)):
+            continue
+        try:
+            name = e[:nl - 2].decode('utf-16-le')
+        except UnicodeDecodeError:
+            continue
+        if not name.isprintable():
+            continue
+        start, size = struct.unpack_from('<IQ', e, 116)
+        if typ == 5:
+            if size > 0:
+                root = (start, size)
+        elif typ == 2 and name not in ents:
+            ents[name] = (start, size)
+
+    def fat_read(start, size):
+        out, sect, guard = bytearray(), start, 0
+        while sect < 0xFFFFFFFA and len(out) < size and guard < 1_000_000:
+            out += data[512 + sect * ss: 512 + (sect + 1) * ss]
+            sect = ole.fat[sect] if sect < len(ole.fat) else 0xFFFFFFFE
+            guard += 1
+        if len(out) < size:                     # FAT 연결이 끊김 → 연속 섹터로 가정
+            out = data[512 + start * ss: 512 + start * ss + size]
+        return bytes(out[:size])
+
+    mini = fat_read(*root) if root else b''
+    res = {}
+    for name, (start, size) in ents.items():
+        if size >= ole.minisectorcutoff:
+            res[name] = fat_read(start, size)
+        else:
+            res[name] = mini[start * ole.minisectorsize: start * ole.minisectorsize + size]
+    return res
+
+
 def hwp_text(path: str) -> str:
-    ole = olefile.OleFileIO(path)
+    st = _Streams(path)
     try:
-        hdr = ole.openstream('FileHeader').read()
+        hdr = st.read('FileHeader')
         props = struct.unpack_from('<I', hdr, 36)[0]
         compressed, distributed = bool(props & 1), bool(props & 4)
         if props & 2:
             raise ValueError('암호 설정 문서')
         top = 'ViewText' if distributed else 'BodyText'
-        secs = sorted((e for e in ole.listdir() if len(e) == 2 and e[0] == top),
-                      key=lambda e: int(e[1].replace('Section', '')))
         paras = []
-        for e in secs:
-            data = ole.openstream(e).read()
+        for e in st.sections(top):
+            data = st.read(e)
             if distributed:
                 data = decrypt_distribution_stream(data)
             if compressed:
@@ -119,17 +189,17 @@ def hwp_text(path: str) -> str:
         txt = '\n'.join(paras)
         return txt.encode('utf-16-le', 'surrogatepass').decode('utf-16-le', 'replace')
     finally:
-        ole.close()
+        st.close()
 
 
 def hwp_password_protected(path: str) -> bool:
     """FileHeader 속성 bit1: 사용자 암호 설정 문서"""
-    ole = olefile.OleFileIO(path)
+    st = _Streams(path)
     try:
-        props = struct.unpack_from('<I', ole.openstream('FileHeader').read(), 36)[0]
+        props = struct.unpack_from('<I', st.read('FileHeader'), 36)[0]
         return bool(props & 2)
     finally:
-        ole.close()
+        st.close()
 
 
 def hwp_images(path: str) -> list[bytes]:
