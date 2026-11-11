@@ -152,6 +152,8 @@ class Reader:
                 text, imgs, method = (res[0] if res else ''), [], 'ocr-image'
             elif kind == 'zip':
                 return self._read_zip(path, name, tmpdir, depth)
+            elif kind == 'empty':
+                raise ValueError('빈 파일(0바이트 또는 전부 0으로 채워진 손상 파일) — 판독할 내용 없음')
             elif kind == 'encrypted-unknown':
                 raise PermissionError('형식 표식 없는 암호화 파일(고엔트로피) — 원문 판독 불가')
             elif kind == 'shortcut':

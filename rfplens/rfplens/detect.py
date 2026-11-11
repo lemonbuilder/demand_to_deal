@@ -11,8 +11,10 @@ OLE_MAGIC = b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
 
 
 def detect(data: bytes) -> str:
-    """반환: drm-fasoo | drm-markany | drm | ole | egg | xlsb | odf | cad-dwg | cad-dxf | text | shortcut | encrypted-unknown | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
+    """반환: empty | drm-fasoo | drm-markany | drm | ole | egg | xlsb | odf | cad-dwg | cad-dxf | text | shortcut | encrypted-unknown | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
     h = data[:8]
+    if not data.strip(b'\x00'):
+        return 'empty'                     # 0바이트 또는 전부 0으로 채워진 손상 파일
     if b'DRMONE' in data[:64] or b'FasooSecureContainer' in data[:256] or b'Fasoo DRM' in data[:256]:
         return 'drm-fasoo'
     if b'DOCUMENTSAFER' in data[:64] or b'<## MarkAny' in data[:64]:
