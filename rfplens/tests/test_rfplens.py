@@ -10,7 +10,7 @@ import unittest
 import zipfile
 
 from rfplens.detect import detect
-from rfplens.models import FAIL, OK, PASS_NOTICE, FileResult, NoticeResult
+from rfplens.models import FAIL, OK, PASS_DRM, PASS_NOTICE, FileResult, NoticeResult
 from rfplens.policy import apply_policy
 from rfplens.quality import garbage_ratio
 from rfplens.reader import Reader
@@ -88,7 +88,7 @@ class TestDetectAndRead(unittest.TestCase):
 
     def test_drm_detected_as_failure(self):
         r = self.rd.read_path(self.w('공고문.hwp', b'\x9b DRMONE  This Document is encrypted' + b'\x00' * 200))[0]
-        self.assertEqual((r.kind, r.status), ('drm', FAIL))
+        self.assertEqual((r.kind, r.status), ('drm-fasoo', FAIL))
 
     def test_xlsx(self):
         import openpyxl
@@ -114,6 +114,11 @@ class TestQualityPolicy(unittest.TestCase):
             FileResult(name='2_과업지시서.hwp', kind='hwp', status=OK, text='가' * 200, chars=200, seq=2)])
         apply_policy(nr)
         self.assertEqual(nr.files[0].status, PASS_NOTICE)
+
+    def test_fasoo_drm_pass(self):
+        nr = NoticeResult('N4', 'N4-000', [FileResult(name='2_과업지시서.hwp', kind='drm-fasoo', status=FAIL, error='DRM', seq=1)])
+        apply_policy(nr)
+        self.assertEqual(nr.files[0].status, PASS_DRM)
 
     def test_core_failure_stays(self):
         nr = NoticeResult('N2', 'N2-000', [FileResult(name='2_과업지시서.hwp', kind='drm', status=FAIL, error='DRM', seq=1)])

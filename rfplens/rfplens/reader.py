@@ -127,8 +127,9 @@ class Reader:
                 text, imgs, method = (res[0] if res else ''), [], 'ocr-image'
             elif kind == 'zip':
                 return self._read_zip(path, name, tmpdir, depth)
-            elif kind == 'drm':
-                raise PermissionError('DRM 암호화 문서(복호화 키 없음) — 원문 판독 불가')
+            elif kind.startswith('drm'):
+                vendor = 'Fasoo ' if kind == 'drm-fasoo' else ''
+                raise PermissionError(f'{vendor}DRM 암호화 문서(복호화 키 없음) — 원문 판독 불가')
             else:  # hwp3, ole_other, unknown, zip_broken, archive_other
                 out = X.lo_convert(path, 'txt:Text (encoded):UTF8', tmpdir, s)
                 text, imgs, method = open(out, encoding='utf-8', errors='ignore').read(), [], f'lo-txt({kind})'

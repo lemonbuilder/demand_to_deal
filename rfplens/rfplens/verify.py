@@ -39,5 +39,5 @@ def verify_read(store_root: str, group: str, rows) -> dict:
                 subst.append((no, f.name, f.substitute_from))
     return {'그룹': group, '대상공고': len(list(rows)), '기록없는공고': missing_notice, '기록누락파일': missing_file,
             '상태': dict(status), '형식': dict(kind), '판독방법': dict(meth), '실패': fails, '부분판독(표제외)': partial,
-            '짧은문서': short, '통과(공고문판독불가)': passed, '대체원문': subst,
+            '짧은문서': short, '통과(공고문판독불가·DRM)': passed, '대체원문': subst,
             '이상없음': not (missing_notice or missing_file or fails or partial)}
