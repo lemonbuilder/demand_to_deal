@@ -127,6 +127,8 @@ class Reader:
                 raise ValueError('CAD 도면 파일(비텍스트 자료)')
             elif kind == 'egg':
                 return self._read_egg(path, name, tmpdir, depth)
+            elif kind == 'archive_other':          # 7z·rar → bsdtar(libarchive) 해제 후 폴더 재귀
+                return self._read_bsdtar(path, name, tmpdir, depth)
             elif kind in ('xls', 'doc', 'ppt'):
                 tgt = {'xls': 'xlsx', 'doc': 'docx', 'ppt': 'pptx'}[kind]
                 d2 = open(X.lo_convert(path, tgt, tmpdir, s), 'rb').read()
@@ -158,6 +160,27 @@ class Reader:
             return [(None, kind, method, text, '')]
         except Exception as e:
             return [(None, kind, 'error', '', f'{type(e).__name__}: {str(e)[:200]}')]
+
+    def _read_bsdtar(self, path, name, tmpdir, depth):
+        import shutil
+        import subprocess
+        sub = os.path.join(tmpdir, f'a{depth}_{abs(hash((path, name))) % 10**8}')
+        os.makedirs(sub, exist_ok=True)
+        tool = shutil.which('bsdtar') or shutil.which('7zz') or shutil.which('7z')
+        if not tool:
+            raise RuntimeError('7z·rar 해제 도구(bsdtar) 없음')
+        cmd = [tool, '-xf', path, '-C', sub] if 'bsdtar' in tool else [tool, 'x', '-y', f'-o{sub}', path]
+        r = subprocess.run(cmd, capture_output=True, timeout=self.s.tool_timeout)
+        err = r.stderr.decode('utf-8', 'ignore')
+        if 'assword' in err or 'ncrypt' in err:
+            return [(None, 'encrypted-archive', 'error', '', '암호가 걸린 압축 — 원문 판독 불가')]
+        if not any(os.scandir(sub)):
+            raise RuntimeError(f'압축 해제 실패: {err[:150]}')
+        res = []
+        for fn in sorted(os.listdir(sub)):
+            for n, *rest in self._read_any(os.path.join(sub, fn), fn, tmpdir, depth + 1):
+                res.append((f'{fn}/{n}' if n and n != fn else fn, *rest))
+        return res
 
     def _read_egg(self, path, name, tmpdir, depth):
         from .readers import egg
