@@ -107,6 +107,8 @@ class TestQualityPolicy(unittest.TestCase):
     def test_garbage(self):
         self.assertGreater(garbage_ratio('鬠䑒䵏久周楳潣畭敮琠楳湣特灴敤湤牯瑥捴敤礠䙡獯漠䑒䴠' * 3), 0.3)
         self.assertEqual(garbage_ratio('과업의 범위는 다음과 같다. ' * 10), 0.0)
+        self.assertGreater(garbage_ratio('ĐĎ#ŕˇ±#á####>###ţ˙ ####' * 20), 0.3)          # 라틴형 깨짐
+        self.assertLess(garbage_ratio('The scope of work includes survey and design. ' * 10), 0.3)  # 정상 영문
 
     def test_notice_policy_pass(self):
         nr = NoticeResult('N1', 'N1-000', [

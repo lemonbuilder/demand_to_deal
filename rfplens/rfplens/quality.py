@@ -15,12 +15,22 @@ def clean(t: str) -> str:
     return re.sub(r'\n\s*\n+', '\n', t).strip()
 
 
+_LATIN_JUNK = re.compile(r'[\u0080-\u024f\ufffd#]')
+_HANGUL = re.compile(r'[가-힣]')
+
+
 def garbage_ratio(t: str) -> float:
-    """CJK 한자·사용자정의·대체문자 비율. 바이너리를 텍스트로 잘못 읽으면 급증(예: DRM 파일 → 51%)."""
+    """바이너리를 텍스트로 잘못 읽은 정도(0~1)
+    - 한자형 깨짐: CJK 한자·사용자정의·대체문자 비율(예: DRM 파일 → 51%)
+    - 라틴형 깨짐: 한글이 1% 미만인데 라틴 확장·'#'·대체문자 비율(예: 손상 OLE를 LibreOffice로 읽은 경우)"""
     s = re.sub(r'\s', '', t)
     if len(s) < 50:
         return 0.0
-    return len(_WEIRD.findall(s)) / len(s)
+    cjk = len(_WEIRD.findall(s)) / len(s)
+    latin = 0.0
+    if len(_HANGUL.findall(s)) / len(s) < 0.01:
+        latin = len(_LATIN_JUNK.findall(s)) / len(s)
+    return max(cjk, latin)
 
 
 def judge(text: str, error: str | None, method: str, s: Settings) -> tuple[str, str | None]:

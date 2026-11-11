@@ -88,7 +88,10 @@ class Reader:
         kind = D.detect(data)
         try:
             if kind == 'ole':
-                kind = D.ole_kind(path)
+                try:
+                    kind = D.ole_kind(path)
+                except Exception:          # 손상 OLE(불완전 섹터 등) → LibreOffice 텍스트 변환 시도
+                    kind = 'ole_broken'
             if kind == 'hwp':
                 try:
                     text, method = H.hwp_text(path), 'hwp-record'
@@ -128,7 +131,7 @@ class Reader:
             elif kind == 'zip':
                 return self._read_zip(path, name, tmpdir, depth)
             elif kind.startswith('drm'):
-                vendor = 'Fasoo ' if kind == 'drm-fasoo' else ''
+                vendor = {'drm-fasoo': 'Fasoo ', 'drm-markany': 'MarkAny '}.get(kind, '')
                 raise PermissionError(f'{vendor}DRM 암호화 문서(복호화 키 없음) — 원문 판독 불가')
             else:  # hwp3, ole_other, unknown, zip_broken, archive_other
                 out = X.lo_convert(path, 'txt:Text (encoded):UTF8', tmpdir, s)
