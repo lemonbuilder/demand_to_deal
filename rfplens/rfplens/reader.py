@@ -134,6 +134,8 @@ class Reader:
                 d2 = open(X.lo_convert(path, tgt, tmpdir, s), 'rb').read()
                 text, imgs = {'xlsx': XD.read_xlsx, 'docx': XD.read_docx, 'pptx': XD.read_pptx}[tgt](d2)
                 method = f'lo-{kind}->{tgt}'
+            elif kind == 'text':
+                text, imgs, method = D.decode_text(data), [], 'text'
             elif kind in ('hml', 'xml'):
                 (text, imgs), method = XD.read_hml(data), 'xml'
             elif kind == 'pdf':

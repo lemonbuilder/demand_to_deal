@@ -11,7 +11,7 @@ OLE_MAGIC = b'\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1'
 
 
 def detect(data: bytes) -> str:
-    """반환: drm-fasoo | drm-markany | drm | ole | egg | xlsb | odf | cad-dwg | cad-dxf | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
+    """반환: drm-fasoo | drm-markany | drm | ole | egg | xlsb | odf | cad-dwg | cad-dxf | text | hwpx | docx | xlsx | pptx | zip | zip_broken | pdf | hwp3 | image | hml | xml | archive_other | unknown"""
     h = data[:8]
     if b'DRMONE' in data[:64] or b'FasooSecureContainer' in data[:256] or b'Fasoo DRM' in data[:256]:
         return 'drm-fasoo'
@@ -57,7 +57,33 @@ def detect(data: bytes) -> str:
         return 'cad-dxf'
     if h.startswith(b'Rar!') or h.startswith(b'7z\xbc\xaf'):
         return 'archive_other'
+    if _is_text(data):
+        return 'text'
     return 'unknown'
+
+
+def _is_text(data: bytes) -> bool:
+    """일반 텍스트(txt·csv 등): UTF-8/UTF-16/CP949로 디코딩되고 제어문자가 거의 없음"""
+    head = data[:20000]
+    if b'\x00' in head and not head.startswith((b'\xff\xfe', b'\xfe\xff')):
+        return False
+    for enc in ('utf-8-sig', 'utf-16', 'cp949'):
+        try:
+            t = head.decode(enc)
+        except UnicodeDecodeError:
+            continue
+        bad = sum(1 for ch in t if ord(ch) < 32 and ch not in '\r\n\t')
+        return bad / max(1, len(t)) < 0.01
+    return False
+
+
+def decode_text(data: bytes) -> str:
+    for enc in ('utf-8-sig', 'utf-16', 'cp949'):
+        try:
+            return data.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return data.decode('utf-8', 'replace')
 
 
 def ole_has(path: str, stream: str) -> bool:
